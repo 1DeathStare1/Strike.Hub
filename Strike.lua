@@ -1,4 +1,4 @@
--- Safe _G initialization
+afe _G initialization
 if _G == nil then _G = {} end
 _G.scriptExecuted = _G.scriptExecuted or false
 if _G.scriptExecuted then return end
