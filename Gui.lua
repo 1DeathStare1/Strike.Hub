@@ -1,4 +1,4 @@
--- gui.lua
+-- gui.lua (with Player and Misc tabs, scrollable content)
 local Player = game.Players.LocalPlayer
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "StrikeGUI"
@@ -65,7 +65,7 @@ reopenButton.MouseButton1Click:Connect(function()
     reopenButton.Visible = false
 end)
 
--- Make draggable after 5 seconds
+-- Draggable after 5 seconds
 task.delay(5, function()
     mainFrame.Active = true
     mainFrame.Draggable = true
@@ -87,12 +87,12 @@ roundFrame(contentContainer, UDim.new(0,8))
 contentContainer.Parent = mainFrame
 
 -- Tabs
-local tabs = {"Current Event", "Optimization", "Auto Farm", "Egg", "Auto Quest", "Mailbox", "Huge Hunter", "Dupe"}
+local tabs = {"Current Event", "Optimization", "Auto Farm", "Egg", "Auto Quest", "Mailbox", "Huge Hunter", "Dupe", "Player", "Misc"}
 local tabButtons = {}
 
 local function switchTab(tabName)
     for _, frame in ipairs(contentContainer:GetChildren()) do
-        if frame:IsA("Frame") then
+        if frame:IsA("ScrollingFrame") then
             frame.Visible = frame.Name == tabName
         end
     end
@@ -102,6 +102,20 @@ local function switchTab(tabName)
         else
             btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
         end
+    end
+end
+
+-- Function to add placeholder elements
+local function addPlaceholderContent(frame)
+    for i = 0, 20 do
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -20, 0, 25)
+        label.Position = UDim2.new(0, 10, 0, 10 + i*30)
+        label.Text = "Placeholder "..(i+1)
+        label.TextColor3 = Color3.fromRGB(255,255,255)
+        label.BackgroundTransparency = 1
+        label.TextScaled = true
+        label.Parent = frame
     end
 end
 
@@ -131,14 +145,19 @@ for index, tabName in ipairs(tabs) do
         end
     end)
 
-    -- Content frame
-    local content = Instance.new("Frame")
+    -- Content scrolling frame
+    local content = Instance.new("ScrollingFrame")
     content.Size = UDim2.new(1,0,1,0)
     content.Position = UDim2.new(0,0,0,0)
     content.BackgroundTransparency = 1
     content.Visible = false
     content.Name = tabName
+    content.CanvasSize = UDim2.new(0,0,0,650)
+    content.ScrollBarThickness = 8
     content.Parent = contentContainer
+
+    -- Add placeholder content
+    addPlaceholderContent(content)
 
     button.MouseButton1Click:Connect(function()
         switchTab(tabName)
