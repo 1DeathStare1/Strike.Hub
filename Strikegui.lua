@@ -10,5 +10,5 @@ spawn(function()
 end)
 
 spawn(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/1DeathStare1/Strike.Hub/main/gui.lua"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/1DeathStare1/Strike.Hub/refs/heads/main/Gui.lua"))()
 end)
