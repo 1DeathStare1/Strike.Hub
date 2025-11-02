@@ -1,168 +1,252 @@
--- gui.lua (with Player and Misc tabs, scrollable content)
-local Player = game.Players.LocalPlayer
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "StrikeGUI"
-ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+-- Strike Hub GUI (with Blur Effect + Draggable + Rounded + Mobile Compatible)
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Helper function to make rounded frames
-local function roundFrame(frame, radius)
-    local uicorner = Instance.new("UICorner")
-    uicorner.CornerRadius = radius
-    uicorner.Parent = frame
-end
+-- Create blur effect
+local blur = Instance.new("BlurEffect")
+blur.Size = 0
+blur.Enabled = false
+blur.Parent = Lighting
 
--- Main frame
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "StrikeHubGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Main Frame
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 420, 0, 500)
-mainFrame.Position = UDim2.new(0, 10, 0, 50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 520, 0, 340)
+mainFrame.Position = UDim2.new(0, 20, 0.1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 mainFrame.BorderSizePixel = 0
-roundFrame(mainFrame, UDim.new(0, 10))
-mainFrame.Visible = true
-mainFrame.Parent = ScreenGui
+mainFrame.Active = true
+mainFrame.Parent = screenGui
 
--- Shadow
-local shadow = Instance.new("Frame")
-shadow.Size = mainFrame.Size + UDim2.new(0, 10, 0, 10)
-shadow.Position = mainFrame.Position + UDim2.new(0, -5, 0, -5)
-shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-shadow.BackgroundTransparency = 0.7
-shadow.BorderSizePixel = 0
-roundFrame(shadow, UDim.new(0, 12))
-shadow.ZIndex = mainFrame.ZIndex - 1
-shadow.Parent = ScreenGui
+-- Rounded corners for GUI
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 15)
+mainCorner.Parent = mainFrame
 
--- Close button
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 25, 0, 25)
-closeButton.Position = UDim2.new(1, -30, 0, 5)
-closeButton.Text = "X"
-closeButton.TextColor3 = Color3.fromRGB(255,255,255)
-closeButton.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-roundFrame(closeButton, UDim.new(0,5))
-closeButton.Parent = mainFrame
+-- Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 35)
+titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
 
--- Reopen button
-local reopenButton = Instance.new("TextButton")
-reopenButton.Size = UDim2.new(0, 50, 0, 25)
-reopenButton.Position = UDim2.new(0, 10, 0, 10)
-reopenButton.Text = "GUI"
-reopenButton.Visible = false
-reopenButton.TextColor3 = Color3.fromRGB(255,255,255)
-reopenButton.BackgroundColor3 = Color3.fromRGB(0,180,0)
-roundFrame(reopenButton, UDim.new(0,5))
-reopenButton.Parent = ScreenGui
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.Parent = titleBar
 
-closeButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
-    shadow.Visible = false
-    reopenButton.Visible = true
-end)
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Parent = titleBar
+titleLabel.Text = "Strike Hub"
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 18
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.Size = UDim2.new(1, -80, 1, 0)
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-reopenButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = true
-    shadow.Visible = true
-    reopenButton.Visible = false
-end)
+-- Hide Button
+local hideBtn = Instance.new("TextButton")
+hideBtn.Name = "HideButton"
+hideBtn.Parent = titleBar
+hideBtn.Text = "Hide"
+hideBtn.Font = Enum.Font.GothamBold
+hideBtn.TextSize = 14
+hideBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+hideBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+hideBtn.BorderSizePixel = 0
+hideBtn.Size = UDim2.new(0, 60, 1, 0)
+hideBtn.Position = UDim2.new(1, -65, 0, 0)
+local hideCorner = Instance.new("UICorner")
+hideCorner.CornerRadius = UDim.new(0, 10)
+hideCorner.Parent = hideBtn
 
--- Draggable after 5 seconds
-task.delay(5, function()
-    mainFrame.Active = true
-    mainFrame.Draggable = true
-end)
+-- Tabs Frame
+local tabsFrame = Instance.new("ScrollingFrame")
+tabsFrame.Name = "TabsFrame"
+tabsFrame.Parent = mainFrame
+tabsFrame.Size = UDim2.new(0, 130, 1, -35)
+tabsFrame.Position = UDim2.new(0, 0, 0, 35)
+tabsFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+tabsFrame.BorderSizePixel = 0
+tabsFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+tabsFrame.ScrollBarThickness = 6
+local tabsCorner = Instance.new("UICorner")
+tabsCorner.CornerRadius = UDim.new(0, 10)
+tabsCorner.Parent = tabsFrame
 
--- Tab container
-local tabContainer = Instance.new("Frame")
-tabContainer.Size = UDim2.new(1, 0, 0, 35)
-tabContainer.Position = UDim2.new(0, 0, 0, 35)
-tabContainer.BackgroundTransparency = 1
-tabContainer.Parent = mainFrame
+local tabsLayout = Instance.new("UIListLayout")
+tabsLayout.Parent = tabsFrame
+tabsLayout.Padding = UDim.new(0, 6)
+tabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- Content container
-local contentContainer = Instance.new("Frame")
-contentContainer.Size = UDim2.new(1, -10, 1, -80)
-contentContainer.Position = UDim2.new(0, 5, 0, 70)
-contentContainer.BackgroundColor3 = Color3.fromRGB(30,30,30)
-roundFrame(contentContainer, UDim.new(0,8))
-contentContainer.Parent = mainFrame
+-- Content Frame
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Parent = mainFrame
+contentFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+contentFrame.Position = UDim2.new(0, 135, 0, 40)
+contentFrame.Size = UDim2.new(1, -145, 1, -50)
+contentFrame.BorderSizePixel = 0
+local contentCorner = Instance.new("UICorner")
+contentCorner.CornerRadius = UDim.new(0, 10)
+contentCorner.Parent = contentFrame
 
 -- Tabs
-local tabs = {"Current Event", "Optimization", "Auto Farm", "Egg", "Auto Quest", "Mailbox", "Huge Hunter", "Dupe", "Player", "Misc"}
-local tabButtons = {}
+local tabNames = {"Current Event", "Optimization", "Auto Farm", "Egg", "Auto Quest", "Mailbox", "Huge Hunter", "Dupe", "Player", "Misc"}
+local tabPages = {}
 
-local function switchTab(tabName)
-    for _, frame in ipairs(contentContainer:GetChildren()) do
-        if frame:IsA("ScrollingFrame") then
-            frame.Visible = frame.Name == tabName
-        end
-    end
-    for _, btn in ipairs(tabButtons) do
-        if btn.Name == tabName then
-            btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
-        else
-            btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-        end
-    end
+local function createPage(name)
+	local page = Instance.new("Frame")
+	page.Name = name .. "Page"
+	page.Size = UDim2.new(1, 0, 1, 0)
+	page.BackgroundTransparency = 1
+	page.Visible = false
+	page.Parent = contentFrame
+
+	local label = Instance.new("TextLabel")
+	label.Parent = page
+	label.Size = UDim2.new(1, -20, 0, 30)
+	label.Position = UDim2.new(0, 10, 0, 10)
+	label.BackgroundTransparency = 1
+	label.Text = name .. " Page"
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 18
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+
+	return page
 end
 
--- Function to add placeholder elements
-local function addPlaceholderContent(frame)
-    for i = 0, 20 do
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, -20, 0, 25)
-        label.Position = UDim2.new(0, 10, 0, 10 + i*30)
-        label.Text = "Placeholder "..(i+1)
-        label.TextColor3 = Color3.fromRGB(255,255,255)
-        label.BackgroundTransparency = 1
-        label.TextScaled = true
-        label.Parent = frame
-    end
+for _, name in ipairs(tabNames) do
+	local btn = Instance.new("TextButton")
+	btn.Name = name .. "Tab"
+	btn.Parent = tabsFrame
+	btn.Size = UDim2.new(1, -10, 0, 30)
+	btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	btn.BorderSizePixel = 0
+	btn.Font = Enum.Font.Gotham
+	btn.Text = name
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextSize = 14
+
+	local tabCorner = Instance.new("UICorner")
+	tabCorner.CornerRadius = UDim.new(0, 8)
+	tabCorner.Parent = btn
+
+	local page = createPage(name)
+	tabPages[name] = page
+
+	btn.MouseButton1Click:Connect(function()
+		for _, p in pairs(tabPages) do
+			p.Visible = false
+		end
+		page.Visible = true
+	end)
 end
 
--- Create tabs and content
-for index, tabName in ipairs(tabs) do
-    -- Tab button
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 100, 1, 0)
-    button.Position = UDim2.new(0, (index-1)*105, 0, 0)
-    button.Text = tabName
-    button.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    button.TextColor3 = Color3.fromRGB(255,255,255)
-    roundFrame(button, UDim.new(0,5))
-    button.Name = tabName
-    button.Parent = tabContainer
-    table.insert(tabButtons, button)
+tabPages["Current Event"].Visible = true
+tabsFrame.CanvasSize = UDim2.new(0, 0, 0, #tabNames * 36)
 
-    -- Hover effect
-    button.MouseEnter:Connect(function()
-        if button.BackgroundColor3 ~= Color3.fromRGB(80,80,80) then
-            button.BackgroundColor3 = Color3.fromRGB(70,70,70)
-        end
-    end)
-    button.MouseLeave:Connect(function()
-        if button.BackgroundColor3 ~= Color3.fromRGB(80,80,80) then
-            button.BackgroundColor3 = Color3.fromRGB(50,50,50)
-        end
-    end)
+-- Open Button
+local openBtn = Instance.new("TextButton")
+openBtn.Name = "OpenStrikeHubButton"
+openBtn.Parent = screenGui
+openBtn.Size = UDim2.new(0, 160, 0, 40)
+openBtn.Position = UDim2.new(0, 20, 0, 10)
+openBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+openBtn.Font = Enum.Font.GothamBold
+openBtn.TextSize = 16
+openBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+openBtn.Text = "Open Strike Hub"
+openBtn.BorderSizePixel = 0
+openBtn.Visible = false
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 10)
+openCorner.Parent = openBtn
 
-    -- Content scrolling frame
-    local content = Instance.new("ScrollingFrame")
-    content.Size = UDim2.new(1,0,1,0)
-    content.Position = UDim2.new(0,0,0,0)
-    content.BackgroundTransparency = 1
-    content.Visible = false
-    content.Name = tabName
-    content.CanvasSize = UDim2.new(0,0,0,650)
-    content.ScrollBarThickness = 8
-    content.Parent = contentContainer
-
-    -- Add placeholder content
-    addPlaceholderContent(content)
-
-    button.MouseButton1Click:Connect(function()
-        switchTab(tabName)
-    end)
+-- Smooth blur functions
+local function smoothBlur(targetSize)
+	task.spawn(function()
+		blur.Enabled = true
+		for i = blur.Size, targetSize, (targetSize > blur.Size and 1 or -1) do
+			blur.Size = i
+			task.wait(0.02)
+		end
+		if targetSize == 0 then
+			blur.Enabled = false
+		end
+	end)
 end
 
--- Show first tab by default
-switchTab(tabs[1])
+-- Hide / Show GUI + blur
+hideBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+	openBtn.Visible = true
+	smoothBlur(0)
+end)
+
+openBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = true
+	openBtn.Visible = false
+	smoothBlur(15)
+end)
+
+-- Enable drag on all devices
+local dragging = false
+local dragStart, startPos
+
+local function updateDrag(input)
+	local delta = input.Position - dragStart
+	mainFrame.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
+end
+
+local function startDrag(input)
+	dragging = true
+	dragStart = input.Position
+	startPos = mainFrame.Position
+
+	local connection
+	connection = input.Changed:Connect(function()
+		if input.UserInputState == Enum.UserInputState.End then
+			dragging = false
+			connection:Disconnect()
+		end
+	end)
+end
+
+titleBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		startDrag(input)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		updateDrag(input)
+	end
+end)
+
+-- Enable drag after 5 seconds
+mainFrame.Active = false
+task.delay(5, function()
+	mainFrame.Active = true
+end)
+
+-- Enable blur immediately on open
+smoothBlur(15)
