@@ -1,4 +1,4 @@
--- Strike Hub GUI (with Blur Effect + Draggable + Rounded + Mobile Compatible)
+-- Strike Hub GUI (Scrollable Tabs + Sub Tabs + Highlight + Draggable + Blur + Mobile Compatible)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -27,7 +27,6 @@ mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Parent = screenGui
 
--- Rounded corners for GUI
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 15)
 mainCorner.Parent = mainFrame
@@ -71,7 +70,7 @@ local hideCorner = Instance.new("UICorner")
 hideCorner.CornerRadius = UDim.new(0, 10)
 hideCorner.Parent = hideBtn
 
--- Tabs Frame
+-- Tabs Frame (Scrollable)
 local tabsFrame = Instance.new("ScrollingFrame")
 tabsFrame.Name = "TabsFrame"
 tabsFrame.Parent = mainFrame
@@ -81,6 +80,8 @@ tabsFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 tabsFrame.BorderSizePixel = 0
 tabsFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 tabsFrame.ScrollBarThickness = 6
+tabsFrame.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
+tabsFrame.ScrollBarImageTransparency = 0.5
 local tabsCorner = Instance.new("UICorner")
 tabsCorner.CornerRadius = UDim.new(0, 10)
 tabsCorner.Parent = tabsFrame
@@ -89,6 +90,11 @@ local tabsLayout = Instance.new("UIListLayout")
 tabsLayout.Parent = tabsFrame
 tabsLayout.Padding = UDim.new(0, 6)
 tabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Update canvas size dynamically for scrolling
+tabsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	tabsFrame.CanvasSize = UDim2.new(0, 0, 0, tabsLayout.AbsoluteContentSize.Y + 6)
+end)
 
 -- Content Frame
 local contentFrame = Instance.new("Frame")
@@ -102,9 +108,10 @@ local contentCorner = Instance.new("UICorner")
 contentCorner.CornerRadius = UDim.new(0, 10)
 contentCorner.Parent = contentFrame
 
--- Tabs
-local tabNames = {"Current Event", "Optimization", "Auto Farm", "Egg", "Auto Quest", "Mailbox", "Huge Hunter", "Dupe", "Player", "Misc"}
+-- Main Tabs & Sub Tabs
+local mainTabNames = {"Current Event", "Optimization", "Auto Farm", "Egg", "Auto Quest", "Mailbox", "Huge Hunter", "Dupe", "Player", "Misc"}
 local tabPages = {}
+local tabButtons = {}
 
 local function createPage(name)
 	local page = Instance.new("Frame")
@@ -125,10 +132,57 @@ local function createPage(name)
 	label.TextColor3 = Color3.fromRGB(255, 255, 255)
 	label.TextXAlignment = Enum.TextXAlignment.Left
 
+	-- Sub-tabs with small toggle boxes (no text)
+	local subTabNames = {"Auto Collect","Auto Break","Auto Sell"} -- Example, replace as needed
+	local startY = 50
+	for i, sub in ipairs(subTabNames) do
+		local subFrame = Instance.new("Frame")
+		subFrame.Parent = page
+		subFrame.Size = UDim2.new(1, -20, 0, 30)
+		subFrame.Position = UDim2.new(0, 10, 0, startY + (i-1)*36)
+		subFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		subFrame.BorderSizePixel = 0
+		local subCorner = Instance.new("UICorner")
+		subCorner.CornerRadius = UDim.new(0, 8)
+		subCorner.Parent = subFrame
+
+		local subLabel = Instance.new("TextLabel")
+		subLabel.Parent = subFrame
+		subLabel.Size = UDim2.new(1, -40, 1, 0)
+		subLabel.Position = UDim2.new(0, 10, 0, 0)
+		subLabel.BackgroundTransparency = 1
+		subLabel.Text = sub
+		subLabel.Font = Enum.Font.Gotham
+		subLabel.TextSize = 14
+		subLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		subLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+		local toggleBox = Instance.new("TextButton")
+		toggleBox.Parent = subFrame
+		toggleBox.Size = UDim2.new(0, 20, 0, 20)
+		toggleBox.Position = UDim2.new(1, -30, 0, 5)
+		toggleBox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+		toggleBox.BorderSizePixel = 0
+		toggleBox.Text = "" -- removed text
+		local toggleCorner = Instance.new("UICorner")
+		toggleCorner.CornerRadius = UDim.new(0, 4)
+		toggleCorner.Parent = toggleBox
+
+		local isOn = false
+		toggleBox.MouseButton1Click:Connect(function()
+			isOn = not isOn
+			if isOn then
+				toggleBox.BackgroundColor3 = Color3.fromRGB(180, 200, 220)
+			else
+				toggleBox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+			end
+		end)
+	end
+
 	return page
 end
 
-for _, name in ipairs(tabNames) do
+for _, name in ipairs(mainTabNames) do
 	local btn = Instance.new("TextButton")
 	btn.Name = name .. "Tab"
 	btn.Parent = tabsFrame
@@ -146,17 +200,25 @@ for _, name in ipairs(tabNames) do
 
 	local page = createPage(name)
 	tabPages[name] = page
+	tabButtons[name] = btn
 
 	btn.MouseButton1Click:Connect(function()
 		for _, p in pairs(tabPages) do
 			p.Visible = false
 		end
 		page.Visible = true
+		for tName, tBtn in pairs(tabButtons) do
+			if tName == name then
+				tBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 220) -- highlight current
+			else
+				tBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			end
+		end
 	end)
 end
 
 tabPages["Current Event"].Visible = true
-tabsFrame.CanvasSize = UDim2.new(0, 0, 0, #tabNames * 36)
+tabButtons["Current Event"].BackgroundColor3 = Color3.fromRGB(70, 130, 220)
 
 -- Open Button
 local openBtn = Instance.new("TextButton")
